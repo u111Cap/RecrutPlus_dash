@@ -108,11 +108,11 @@ export default function DashboardSymphos() {
                 value={libDom}
                 onChange={(e) => setLibDom(e.target.value)}
                 required
-                className="border-blue-300 focus:border-blue-500 focus:ring focus:ring-blue-200"
+                className="border-green-300 focus:border-green-500 focus:ring focus:ring-blue-200"
               />
               <Button
                 type="submit"
-                className="bg-blue-600 hover:bg-blue-700 text-white transition duration-200"
+                className="bg-green-600 hover:bg-green-700 text-white transition duration-200"
               >
                 {editId ? "Mettre à jour" : "Ajouter"}
               </Button>

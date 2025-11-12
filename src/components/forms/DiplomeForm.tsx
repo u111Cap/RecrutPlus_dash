@@ -21,7 +21,7 @@ export default function DiplomeForm({
   const [domaines, setDomaines] = useState<Domaine[]>([]);
 
   useEffect(() => {
-    fetch("/api/domaines")
+    fetch("http://127.0.0.1:8000/api/domaines/")
       .then((res) => res.json())
       .then(setDomaines)
       .catch(console.error);
@@ -29,7 +29,7 @@ export default function DiplomeForm({
 
   async function onSubmit(values: Omit<Diplome, "IdDiplome">, { resetForm }: any) {
     try {
-      const res = await fetch("/api/diplomes", {
+      const res = await fetch("http://127.0.0.1:8000/api/diplomes/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),

@@ -1,8 +1,16 @@
 "use client";
+// FIX: To resolve "Cannot find module 'recharts' or its corresponding type declarations.",
+// please ensure 'recharts' and '@types/recharts' are installed in your project:
+// npm install recharts @types/recharts
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const data = [
+interface ChartData {
+  month: string;
+  recruits: number;
+}
+
+const data: ChartData[] = [
   { month: "Jan", recruits: 10 },
   { month: "Fév", recruits: 35 },
   { month: "Mar", recruits: 45 },

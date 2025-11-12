@@ -20,7 +20,7 @@ export default function DomaineList({ onAdd }: { onAdd: () => void }) {
   const fetchDomaines = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/domaines");
+      const res = await fetch("http://127.0.0.1:8000/api/domaines");
       const data = await res.json();
       setDomaines(data);
     } catch (error) {
