@@ -2,93 +2,138 @@
 
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
-import { Diplome, Domaine } from "@/lib/types";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 
-const Schema = Yup.object().shape({
-  Designation: Yup.string().required("Designation requise").min(2, "Trop court"),
-  IdDom: Yup.number().required("Domaine requis"),
+// Type TypeScript pour les domaines
+export interface Domaine {
+  id_domaine: number;
+  libdom: string;
+}
+
+// Validation Yup
+const Schema = Yup.object({
+  Designation: Yup.string().required("Requis"),
+  IdDom: Yup.number()
+    .required("Requis")
+    .typeError("Sélectionnez un domaine"),
 });
 
-export default function DiplomeForm({
-  onAdded,
-  onCancel,
-}: {
+interface Props {
   onAdded: () => void;
   onCancel: () => void;
-}) {
+}
+
+export default function DiplomeForm({ onAdded, onCancel }: Props) {
   const [domaines, setDomaines] = useState<Domaine[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Récupération des domaines depuis l'API Django
     fetch("http://127.0.0.1:8000/api/domaines/")
       .then((res) => res.json())
-      .then(setDomaines)
-      .catch(console.error);
+      .then((data) => setDomaines(data))
+      .catch((err) => console.error("Erreur lors du chargement des domaines", err))
+      .finally(() => setLoading(false));
   }, []);
 
-  async function onSubmit(values: Omit<Diplome, "IdDiplome">, { resetForm }: any) {
-    try {
-      const res = await fetch("http://127.0.0.1:8000/api/diplomes/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
-      if (!res.ok) throw new Error("Erreur lors de l'ajout");
-      resetForm();
-      onAdded();
-      alert("✅ Diplôme ajouté !");
-    } catch (err) {
-      console.error(err);
-      alert("❌ Erreur : " + err);
-    }
-  }
-
   return (
-    <div className="max-w-lg mx-auto bg-white p-6 rounded-lg shadow-lg">
-      <h2 className="text-lg font-semibold mb-4 text-center text-blue-600">Ajouter un Diplôme</h2>
+    <div className="max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg border border-slate-200">
+      <h2 className="text-xl font-bold text-center text-blue-700 mb-6">
+        Ajouter un diplôme
+      </h2>
+
       <Formik
-        initialValues={{ Designation: "", IdDom: 0 }}
+        initialValues={{ Designation: "", IdDom: "" }}
         validationSchema={Schema}
-        onSubmit={onSubmit}
+        onSubmit={async (values, { resetForm }) => {
+          // Vérification qu'un domaine a bien été sélectionné
+          if (values.IdDom === "") {
+            alert("Veuillez sélectionner un domaine");
+            return;
+          }
+
+          const payload = {
+            designation: values.Designation,
+            domaine: Number(values.IdDom), // conversion en number obligatoire
+          };
+
+          try {
+            const res = await fetch("http://127.0.0.1:8000/api/diplomes/", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+
+            if (res.ok) {
+              resetForm();
+              onAdded();
+            } else {
+              const errorData = await res.json();
+              console.error("Erreur API:", errorData);
+              alert("Erreur lors de l'ajout du diplôme");
+            }
+          } catch (err) {
+            console.error(err);
+            alert("Erreur réseau");
+          }
+        }}
       >
         {({ isSubmitting }) => (
-          <Form className="space-y-4">
-            {/* Designation */}
+          <Form className="space-y-5">
+            {/* Désignation */}
             <div>
-              <label className="block text-sm font-medium mb-1">Designation</label>
+              <label className="font-medium text-sm">Désignation</label>
               <Field
                 name="Designation"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                placeholder="Entrez la designation"
+                placeholder="Ex: Informatique"
+                className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2
+                  focus:ring-2 focus:ring-blue-300 focus:border-blue-500 outline-none"
               />
-              <ErrorMessage name="Designation" component="p" className="text-red-600 text-sm mt-1" />
+              <ErrorMessage
+                name="Designation"
+                className="text-red-500 text-sm mt-1"
+                component="div"
+              />
             </div>
 
             {/* Domaine */}
             <div>
-              <label className="block text-sm font-medium mb-1">Domaine</label>
+              <label className="font-medium text-sm">Domaine</label>
               <Field
                 as="select"
                 name="IdDom"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 bg-white
+                  focus:ring-2 focus:ring-blue-300 focus:border-blue-500 outline-none"
               >
                 <option value="">Sélectionnez un domaine</option>
-                {domaines.map((dom) => (
-                  <option key={dom.IdDom} value={dom.IdDom}>
-                    {dom.LibDom}
-                  </option>
-                ))}
+                {loading ? (
+                  <option disabled>Chargement...</option>
+                ) : (
+                  domaines.map((dom) => (
+                    <option key={dom.id_domaine} value={dom.id_domaine}>
+                      {dom.libdom}
+                    </option>
+                  ))
+                )}
               </Field>
-              <ErrorMessage name="IdDom" component="p" className="text-red-600 text-sm mt-1" />
+              <ErrorMessage
+                name="IdDom"
+                className="text-red-500 text-sm mt-1"
+                component="div"
+              />
             </div>
 
             {/* Boutons */}
-            <div className="flex justify-between">
-              <Button variant="secondary" onClick={onCancel}>
+            <div className="flex justify-between pt-4">
+              <Button variant="secondary" type="button" onClick={onCancel}>
                 Retour
               </Button>
-              <Button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded">
+              <Button
+                type="submit"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                disabled={isSubmitting}
+              >
                 {isSubmitting ? "Envoi..." : "Ajouter"}
               </Button>
             </div>
