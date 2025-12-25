@@ -1,145 +1,126 @@
 "use client";
 
-import { Formik, Form, Field, ErrorMessage } from "formik";
-import * as Yup from "yup";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
-// Type TypeScript pour les domaines
-export interface Domaine {
-  id_domaine: number;
-  libdom: string;
-}
+const API_DOMAINE = "http://127.0.0.1:8000/api/domaines/";
+const API_DIPLOME = "http://127.0.0.1:8000/api/diplomes/";
 
-// Validation Yup
-const Schema = Yup.object({
-  Designation: Yup.string().required("Requis"),
-  IdDom: Yup.number()
-    .required("Requis")
-    .typeError("Sélectionnez un domaine"),
-});
+export default function DiplomeForm({ diplome, onClose }: any) {
+  const [form, setForm] = useState({
+    designation: diplome?.designation || "",
+    domaineId: diplome?.domaine || "",
+  });
+  const [domaines, setDomaines] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
-interface Props {
-  onAdded: () => void;
-  onCancel: () => void;
-}
-
-export default function DiplomeForm({ onAdded, onCancel }: Props) {
-  const [domaines, setDomaines] = useState<Domaine[]>([]);
-  const [loading, setLoading] = useState(true);
-
+  // Charger les domaines depuis API V1
   useEffect(() => {
-    // Récupération des domaines depuis l'API Django
-    fetch("http://127.0.0.1:8000/api/domaines/")
-      .then((res) => res.json())
-      .then((data) => setDomaines(data))
-      .catch((err) => console.error("Erreur lors du chargement des domaines", err))
-      .finally(() => setLoading(false));
+    const fetchDomaines = async () => {
+      try {
+        const res = await axios.get(API_DOMAINE);
+        setDomaines(res.data);
+      } catch (err) {
+        console.error("Erreur chargement domaines:", err);
+        alert("Impossible de charger les domaines");
+      }
+    };
+    fetchDomaines();
   }, []);
 
+  const handleSubmit = async (e: any) => {
+    e.preventDefault();
+    if (!form.domaineId) {
+      alert("Veuillez sélectionner un domaine");
+      return;
+    }
+
+    setLoading(true);
+    const payload = {
+      designation: form.designation,
+      domaine: Number(form.domaineId), // API V1 attend id numérique
+    };
+
+    try {
+      if (diplome) {
+        await axios.put(`${API_DIPLOME}${diplome.id_diplome}/`, payload);
+      } else {
+        await axios.post(API_DIPLOME, payload);
+      }
+      onClose();
+    } catch (err) {
+      console.error("Erreur sauvegarde diplôme:", err);
+      alert("Erreur lors de la sauvegarde");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg border border-slate-200">
-      <h2 className="text-xl font-bold text-center text-blue-700 mb-6">
-        Ajouter un diplôme
-      </h2>
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-md space-y-5 rounded-xl p-6 border border-[#E6F4ED] bg-white shadow-md">
+        <DialogHeader>
+          <DialogTitle className="text-[#0A5C36] text-xl font-bold">
+            {diplome ? "Modifier le Diplôme" : "Nouveau Diplôme"}
+          </DialogTitle>
+        </DialogHeader>
 
-      <Formik
-        initialValues={{ Designation: "", IdDom: "" }}
-        validationSchema={Schema}
-        onSubmit={async (values, { resetForm }) => {
-          // Vérification qu'un domaine a bien été sélectionné
-          if (values.IdDom === "") {
-            alert("Veuillez sélectionner un domaine");
-            return;
-          }
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Désignation */}
+          <div className="flex flex-col gap-1">
+            <Label className="text-[#0A5C36] font-medium">Désignation</Label>
+            <Input
+              value={form.designation}
+              onChange={(e) => setForm({ ...form, designation: e.target.value })}
+              className="border-[#1B7A53] focus:ring-2 focus:ring-[#B4EFC4] rounded-lg"
+              placeholder="Ex: Ingénierie Logicielle"
+              required
+            />
+          </div>
 
-          const payload = {
-            designation: values.Designation,
-            domaine: Number(values.IdDom), // conversion en number obligatoire
-          };
+          {/* Domaine */}
+          <div className="flex flex-col gap-1">
+            <Label className="text-[#0A5C36] font-medium">Domaine</Label>
+            <Select
+              value={String(form.domaineId)}
+              onValueChange={(v) => setForm({ ...form, domaineId: v })}
+            >
+              <SelectTrigger className="border-[#1B7A53] focus:ring-2 focus:ring-[#B4EFC4] rounded-lg">
+                <SelectValue placeholder="Choisir un domaine" />
+              </SelectTrigger>
+              <SelectContent>
+                {domaines.map((d) => (
+                  <SelectItem key={d.id_domaine} value={String(d.id_domaine)}>
+                    {d.libdom}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          try {
-            const res = await fetch("http://127.0.0.1:8000/api/diplomes/", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            });
+          {/* Boutons */}
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[#0A5C36] hover:bg-[#0C7041] text-white rounded-xl shadow-sm mt-2"
+          >
+            {loading ? "Enregistrement..." : diplome ? "Mettre à jour" : "Créer"}
+          </Button>
 
-            if (res.ok) {
-              resetForm();
-              onAdded();
-            } else {
-              const errorData = await res.json();
-              console.error("Erreur API:", errorData);
-              alert("Erreur lors de l'ajout du diplôme");
-            }
-          } catch (err) {
-            console.error(err);
-            alert("Erreur réseau");
-          }
-        }}
-      >
-        {({ isSubmitting }) => (
-          <Form className="space-y-5">
-            {/* Désignation */}
-            <div>
-              <label className="font-medium text-sm">Désignation</label>
-              <Field
-                name="Designation"
-                placeholder="Ex: Informatique"
-                className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2
-                  focus:ring-2 focus:ring-blue-300 focus:border-blue-500 outline-none"
-              />
-              <ErrorMessage
-                name="Designation"
-                className="text-red-500 text-sm mt-1"
-                component="div"
-              />
-            </div>
-
-            {/* Domaine */}
-            <div>
-              <label className="font-medium text-sm">Domaine</label>
-              <Field
-                as="select"
-                name="IdDom"
-                className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 bg-white
-                  focus:ring-2 focus:ring-blue-300 focus:border-blue-500 outline-none"
-              >
-                <option value="">Sélectionnez un domaine</option>
-                {loading ? (
-                  <option disabled>Chargement...</option>
-                ) : (
-                  domaines.map((dom) => (
-                    <option key={dom.id_domaine} value={dom.id_domaine}>
-                      {dom.libdom}
-                    </option>
-                  ))
-                )}
-              </Field>
-              <ErrorMessage
-                name="IdDom"
-                className="text-red-500 text-sm mt-1"
-                component="div"
-              />
-            </div>
-
-            {/* Boutons */}
-            <div className="flex justify-between pt-4">
-              <Button variant="secondary" type="button" onClick={onCancel}>
-                Retour
-              </Button>
-              <Button
-                type="submit"
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? "Envoi..." : "Ajouter"}
-              </Button>
-            </div>
-          </Form>
-        )}
-      </Formik>
-    </div>
+          <Button
+            type="button"
+            onClick={onClose}
+            className="w-full border border-[#0A5C36] text-[#0A5C36] hover:bg-[#E7F5EF] rounded-xl mt-2"
+          >
+            Annuler
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

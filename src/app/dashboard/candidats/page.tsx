@@ -1,48 +1,3 @@
-
-
-// "use client";
-
-// import { useState } from "react";
-// import { useRouter } from "next/navigation";
-// import { ArrowLeft } from "lucide-react";
-// import CandidatForm from "@/components/forms/CandidatForm";
-// import CandidatList from "@/components/lists/CandidatList";
-
-// export default function CandidatsPage() {
-//   const [adding, setAdding] = useState(false);
-//   const [refresh, setRefresh] = useState(false);
-//   const router = useRouter();
-
-//   const handleAdd = () => setAdding(true);
-//   const handleCancel = () => setAdding(false);
-//   const handleAdded = () => {
-//     setRefresh(!refresh);
-//     handleCancel();
-//   };
-
-//   return (
-//     <div className="flex flex-col min-h-screen bg-gray-50">
-//       <header className="flex items-center gap-4 bg-white p-4 shadow-md w-full fixed top-0 z-50">
-//         <button onClick={() => router.back()} className="p-2 rounded hover:bg-gray-100 transition">
-//           <ArrowLeft className="w-6 h-6 text-blue-600" />
-//         </button>
-//         <h1 className="text-2xl font-semibold text-gray-800">Gestion des Candidats</h1>
-//       </header>
-
-//       <main className="flex flex-col gap-8 p-6 pt-28">
-//         <div className="bg-white p-6 rounded-lg shadow-md space-y-6">
-//           {!adding ? (
-//             <CandidatList key={refresh ? 1 : 0} onAdd={handleAdd} />
-//           ) : (
-//             <CandidatForm onAdded={handleAdded} onCancel={handleCancel} />
-//           )}
-//         </div>
-//       </main>
-//     </div>
-//   );
-// }
-
-
 "use client";
 
 import { useState } from "react";
@@ -52,32 +7,71 @@ import CandidatForm from "@/components/forms/CandidatForm";
 import CandidatList from "@/components/lists/CandidatList";
 
 export default function CandidatsPage() {
-  const [adding, setAdding] = useState(false);
-  const [refresh, setRefresh] = useState(false);
   const router = useRouter();
+  
+  // États pour la navigation et le rafraîchissement
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editId, setEditId] = useState<string | number | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const handleAdd = () => setAdding(true);
-  const handleCancel = () => setAdding(false);
-  const handleAdded = () => {
-    setRefresh(!refresh);
-    setAdding(false);
+  // Actions : Ouvrir pour ajout
+  const handleAdd = () => {
+    setEditId(null);
+    setIsFormOpen(true);
+  };
+
+  // Actions : Ouvrir pour modification (C'est ici que le lien se fait avec la liste)
+  const handleEdit = (candidat: any) => {
+    // On suppose que l'identifiant est 'id' ou 'num_candidat' selon votre API
+    setEditId(candidat.id || candidat.num_candidat); 
+    setIsFormOpen(true);
+  };
+
+  // Fermer le formulaire
+  const handleCancel = () => {
+    setIsFormOpen(false);
+    setEditId(null);
+  };
+
+  // Succès de l'opération
+  const handleFormSuccess = () => {
+    setRefreshKey((prev) => prev + 1);
+    handleCancel();
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
-      <header className="flex items-center gap-4 bg-white p-4 shadow-md fixed top-0 w-full z-50">
-        <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 rounded">
-          <ArrowLeft className="w-6 h-6 text-blue-600" />
+    <div className="flex flex-col min-h-screen bg-[#F3F9F5]">
+      {/* Header fixe - Style V1 */}
+      <header className="flex items-center gap-4 bg-white p-4 shadow-sm w-full fixed top-0 z-50 border-b border-[#E6F4ED]">
+        <button
+          onClick={() => router.back()}
+          className="p-2 rounded-xl hover:bg-[#E7F5EF] transition-colors"
+        >
+          <ArrowLeft className="w-6 h-6 text-[#0A5C36]" />
         </button>
-        <h1 className="text-2xl font-semibold text-gray-800">Gestion des Candidats</h1>
+        <h1 className="text-2xl font-bold text-[#0A5C36]">Gestion des Candidats</h1>
       </header>
 
-      <main className="flex flex-col gap-8 p-6 pt-28">
-        <div className="bg-white p-6 rounded-lg shadow-md space-y-6">
-          {!adding ? (
-            <CandidatList key={refresh ? 1 : 0} onAdd={handleAdd} />
+      {/* Contenu principal */}
+      <main className="flex flex-col gap-8 p-6 pt-28 max-w-7xl mx-auto w-full">
+        <div className="bg-white p-6 rounded-2xl shadow-xl border border-[#E6F4ED] space-y-6">
+          {!isFormOpen ? (
+            /* Liste : on passe obligatoirement onAdd ET onEdit */
+            <CandidatList 
+              key={refreshKey} 
+              onAdd={handleAdd} 
+              onEdit={handleEdit} 
+            />
           ) : (
-            <CandidatForm onAdded={handleAdded} onCancel={handleCancel} />
+            /* Formulaire : on passe editId pour savoir s'il faut PUT ou POST */
+            <div className="animate-in fade-in zoom-in duration-300">
+              <CandidatForm
+                editId={editId}
+                onAdded={handleFormSuccess}
+                onCancel={handleCancel}
+                className="rounded-2xl"
+              />
+            </div>
           )}
         </div>
       </main>

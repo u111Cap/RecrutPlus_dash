@@ -1,83 +1,78 @@
 "use client";
 
-import { Formik, Form, Field, ErrorMessage } from "formik";
-import * as Yup from "yup";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
-import { Domaine } from "@/lib/types";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-const Schema = Yup.object().shape({
-  LibDom: Yup.string().required("Libellé requis").min(2, "Trop court"),
-});
+const API_URL = "http://127.0.0.1:8000/api/domaines/";
 
-export default function DomaineForm({
-  onAdded,
-  onCancel,
-}: {
-  onAdded: () => void;
-  onCancel: () => void;
-}) {
+export default function DomaineForm({ domaine, onClose }: any) {
+  const [libDom, setLibDom] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const onSubmit = async (
-    values: Omit<Domaine, "IdDom">,
-    { resetForm }: any
-  ) => {
+  useEffect(() => {
+    if (domaine) setLibDom(domaine.lib_dom); // utilise lib_dom de l'API V1
+  }, [domaine]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
+
     try {
-      const res = await fetch("/api/domaines", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
-
-      if (!res.ok) throw new Error("Erreur lors de l'ajout");
-
-      resetForm();
-      onAdded();
+      if (domaine) {
+        await axios.put(`${API_URL}${domaine.id_dom}/`, { lib_dom: libDom });
+      } else {
+        await axios.post(API_URL, { lib_dom: libDom });
+      }
+      onClose();
     } catch (err) {
-      console.error(err);
-      alert("❌ Erreur : " + err);
+      console.error("Erreur domaine :", err);
+      alert("❌ Erreur lors de la sauvegarde");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-lg mx-auto bg-white p-6 rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold mb-4 text-center text-blue-600">
-        Ajouter un Domaine
-      </h2>
-      <Formik initialValues={{ LibDom: "" }} validationSchema={Schema} onSubmit={onSubmit}>
-        {({ isSubmitting }) => (
-          <Form className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Libellé</label>
-              <Field
-                name="LibDom"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                placeholder="Entrez le libellé"
-              />
-              <ErrorMessage
-                name="LibDom"
-                component="p"
-                className="text-red-600 text-sm mt-1"
-              />
-            </div>
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-md space-y-4 rounded-xl shadow-lg border border-[#E6F4ED] bg-white p-6">
+        <DialogHeader>
+          <DialogTitle className="text-lg font-bold text-[#0A5C36]">
+            {domaine ? "Modifier le Domaine" : "Nouveau Domaine"}
+          </DialogTitle>
+        </DialogHeader>
 
-            <div className="flex justify-between">
-              <Button variant="secondary" type="button" onClick={onCancel}>
-                Retour
-              </Button>
-              <Button type="submit" disabled={isSubmitting || loading} className="flex items-center gap-2">
-                {loading && <Loader2 className="animate-spin w-4 h-4" />}
-                {loading ? "Envoi..." : "Ajouter"}
-              </Button>
-            </div>
-          </Form>
-        )}
-      </Formik>
-    </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="flex flex-col gap-1">
+            <Label className="text-[#0A5C36] font-medium">Libellé</Label>
+            <Input
+              value={libDom}
+              onChange={(e) => setLibDom(e.target.value)}
+              className="border-[#0A5C36] focus:ring-2 focus:ring-[#B4EFC4] focus:border-[#0A5C36] rounded-lg"
+              required
+            />
+          </div>
+
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[#0A5C36] text-white hover:bg-[#1B7A53] transition-colors rounded-lg"
+          >
+            {loading ? "Enregistrement..." : domaine ? "Mettre à jour" : "Créer"}
+          </Button>
+
+          <Button
+            type="button"
+            onClick={onClose}
+            className="w-full border border-[#0A5C36] text-[#0A5C36] hover:bg-[#E7F5EF] rounded-lg transition-colors"
+          >
+            Annuler
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
