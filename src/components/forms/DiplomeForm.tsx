@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,14 +14,45 @@ const API_DOMAINE = "http://127.0.0.1:8000/api/domaines/";
 const API_DIPLOME = "http://127.0.0.1:8000/api/diplomes/";
 
 export default function DiplomeForm({ diplome, onClose }: any) {
-  const [form, setForm] = useState({
-    designation: diplome?.designation || "",
-    domaineId: diplome?.domaine || "",
-  });
   const [domaines, setDomaines] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
 
-  // Charger les domaines depuis API V1
+  // 1. Schéma de validation Yup
+  const validationSchema = Yup.object({
+    designation: Yup.string()
+      .min(3, "La désignation doit faire au moins 3 caractères")
+      .required("La désignation est obligatoire"),
+    domaineId: Yup.string()
+      .required("Veuillez sélectionner un domaine"),
+  });
+
+  // 2. Configuration de Formik
+  const formik = useFormik({
+    initialValues: {
+      designation: diplome?.designation || "",
+      domaineId: diplome?.domaine ? String(diplome.domaine) : "",
+    },
+    validationSchema: validationSchema,
+    onSubmit: async (values) => {
+      const payload = {
+        designation: values.designation,
+        domaine: Number(values.domaineId),
+      };
+
+      try {
+        if (diplome) {
+          await axios.put(`${API_DIPLOME}${diplome.id_diplome}/`, payload);
+        } else {
+          await axios.post(API_DIPLOME, payload);
+        }
+        onClose();
+      } catch (err) {
+        console.error("Erreur sauvegarde:", err);
+        alert("Une erreur est survenue lors de l'enregistrement.");
+      }
+    },
+  });
+
+  // Charger les domaines au montage
   useEffect(() => {
     const fetchDomaines = async () => {
       try {
@@ -27,39 +60,10 @@ export default function DiplomeForm({ diplome, onClose }: any) {
         setDomaines(res.data);
       } catch (err) {
         console.error("Erreur chargement domaines:", err);
-        alert("Impossible de charger les domaines");
       }
     };
     fetchDomaines();
   }, []);
-
-  const handleSubmit = async (e: any) => {
-    e.preventDefault();
-    if (!form.domaineId) {
-      alert("Veuillez sélectionner un domaine");
-      return;
-    }
-
-    setLoading(true);
-    const payload = {
-      designation: form.designation,
-      domaine: Number(form.domaineId), // API V1 attend id numérique
-    };
-
-    try {
-      if (diplome) {
-        await axios.put(`${API_DIPLOME}${diplome.id_diplome}/`, payload);
-      } else {
-        await axios.post(API_DIPLOME, payload);
-      }
-      onClose();
-    } catch (err) {
-      console.error("Erreur sauvegarde diplôme:", err);
-      alert("Erreur lors de la sauvegarde");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -70,55 +74,74 @@ export default function DiplomeForm({ diplome, onClose }: any) {
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={formik.handleSubmit} className="space-y-4">
+          
           {/* Désignation */}
           <div className="flex flex-col gap-1">
-            <Label className="text-[#0A5C36] font-medium">Désignation</Label>
+            <Label htmlFor="designation" className="text-[#0A5C36] font-medium">Désignation</Label>
             <Input
-              value={form.designation}
-              onChange={(e) => setForm({ ...form, designation: e.target.value })}
-              className="border-[#1B7A53] focus:ring-2 focus:ring-[#B4EFC4] rounded-lg"
+              id="designation"
+              name="designation"
+              type="text"
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              value={formik.values.designation}
+              className={`border-[#1B7A53] focus:ring-2 focus:ring-[#B4EFC4] rounded-lg ${
+                formik.touched.designation && formik.errors.designation ? "border-red-500" : ""
+              }`}
               placeholder="Ex: Ingénierie Logicielle"
-              required
             />
+            {formik.touched.designation && formik.errors.designation ? (
+              <span className="text-red-500 text-xs">{formik.errors.designation}</span>
+            ) : null}
           </div>
 
           {/* Domaine */}
           <div className="flex flex-col gap-1">
             <Label className="text-[#0A5C36] font-medium">Domaine</Label>
             <Select
-              value={String(form.domaineId)}
-              onValueChange={(v) => setForm({ ...form, domaineId: v })}
+              value={formik.values.domaineId}
+              onValueChange={(value) => formik.setFieldValue("domaineId", value)}
             >
-              <SelectTrigger className="border-[#1B7A53] focus:ring-2 focus:ring-[#B4EFC4] rounded-lg">
+              <SelectTrigger 
+                className={`border-[#1B7A53] focus:ring-2 focus:ring-[#B4EFC4] rounded-lg ${
+                  formik.touched.domaineId && formik.errors.domaineId ? "border-red-500" : ""
+                }`}
+              >
                 <SelectValue placeholder="Choisir un domaine" />
               </SelectTrigger>
               <SelectContent>
                 {domaines.map((d) => (
-                  <SelectItem key={d.id_domaine} value={String(d.id_domaine)}>
-                    {d.libdom}
+                  <SelectItem key={d.id_dom} value={String(d.id_dom)}>
+                    {d.lib_dom}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {formik.touched.domaineId && formik.errors.domaineId ? (
+              <span className="text-red-500 text-xs">{formik.errors.domaineId}</span>
+            ) : null}
           </div>
 
-          {/* Boutons */}
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[#0A5C36] hover:bg-[#0C7041] text-white rounded-xl shadow-sm mt-2"
-          >
-            {loading ? "Enregistrement..." : diplome ? "Mettre à jour" : "Créer"}
-          </Button>
+          {/* Boutons d'action */}
+          <div className="flex flex-col gap-2 pt-2">
+            <Button
+              type="submit"
+              disabled={formik.isSubmitting}
+              className="w-full bg-[#0A5C36] hover:bg-[#0C7041] text-white rounded-xl shadow-sm"
+            >
+              {formik.isSubmitting ? "Enregistrement..." : diplome ? "Mettre à jour" : "Créer"}
+            </Button>
 
-          <Button
-            type="button"
-            onClick={onClose}
-            className="w-full border border-[#0A5C36] text-[#0A5C36] hover:bg-[#E7F5EF] rounded-xl mt-2"
-          >
-            Annuler
-          </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="w-full border-[#0A5C36] text-[#0A5C36] hover:bg-[#E7F5EF] rounded-xl"
+            >
+              Annuler
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
